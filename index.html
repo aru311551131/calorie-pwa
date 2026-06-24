@@ -21,9 +21,9 @@
           <h1>每日營養紀錄</h1>
         </div>
         <div class="topbar-actions">
-          <button class="icon-button" id="installButton" type="button" hidden title="安裝到裝置">
+          <button class="icon-button" id="installButton" type="button" hidden title="加到裝置（PWA）">
             <span aria-hidden="true">↓</span>
-            <span class="button-text">安裝</span>
+            <span class="button-text">加到裝置</span>
           </button>
           <button class="icon-button danger" id="resetButton" type="button" title="清除所有本機資料">
             <span aria-hidden="true">×</span>
@@ -103,7 +103,7 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">Food Table</p>
-              <h2 id="foodTitle">營養素分布表</h2>
+              <h2 id="foodTitle">熱量蛋白質表</h2>
             </div>
             <input class="search-input" id="foodSearch" type="search" placeholder="搜尋食物" />
           </div>
@@ -114,13 +114,12 @@
               <select id="foodSelect"></select>
             </label>
             <label>
-              份量 g
+              <span id="servingLabel">生食重 g</span>
               <input id="servingAmount" type="number" min="0" step="1" inputmode="decimal" value="100" />
             </label>
             <div class="calculator-output" aria-label="份量計算結果">
               <strong id="calcCalories">0 kcal</strong>
               <span id="calcProtein">0 g 蛋白質</span>
-              <span id="calcCarbsFat">0 g 碳水 · 0 g 脂肪</span>
             </div>
             <button class="secondary-button" id="addCalculatedFood" type="button">加入選取日</button>
           </div>
@@ -130,10 +129,9 @@
               <thead>
                 <tr>
                   <th>食物</th>
-                  <th>每 100g 熱量</th>
+                  <th>基準</th>
+                  <th>熱量</th>
                   <th>蛋白質</th>
-                  <th>碳水</th>
-                  <th>脂肪</th>
                   <th></th>
                 </tr>
               </thead>
@@ -149,20 +147,12 @@
                 <input id="foodName" type="text" placeholder="例如：常買的雞肉沙拉" required />
               </label>
               <label>
-                熱量 kcal / 100g
+                熱量 kcal / 100g 生食重
                 <input id="foodCalories" type="number" min="0" step="1" inputmode="decimal" required />
               </label>
               <label>
-                蛋白質 g / 100g
+                蛋白質 g / 100g 生食重
                 <input id="foodProtein" type="number" min="0" step="0.1" inputmode="decimal" required />
-              </label>
-              <label>
-                碳水 g / 100g
-                <input id="foodCarbs" type="number" min="0" step="0.1" inputmode="decimal" value="0" />
-              </label>
-              <label>
-                脂肪 g / 100g
-                <input id="foodFat" type="number" min="0" step="0.1" inputmode="decimal" value="0" />
               </label>
               <button class="primary-button" type="submit">新增食物</button>
             </form>

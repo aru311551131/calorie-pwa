@@ -1,18 +1,13 @@
 const storageKey = "daily-nutrition-pwa-v1";
 
 const defaultFoods = [
-  { id: "chicken-breast", name: "雞胸肉", calories: 165, protein: 31, carbs: 0, fat: 3.6, builtIn: true },
-  { id: "egg", name: "雞蛋", calories: 143, protein: 12.6, carbs: 0.7, fat: 9.5, builtIn: true },
-  { id: "white-rice", name: "白飯", calories: 130, protein: 2.7, carbs: 28, fat: 0.3, builtIn: true },
-  { id: "sweet-potato", name: "地瓜", calories: 86, protein: 1.6, carbs: 20.1, fat: 0.1, builtIn: true },
-  { id: "tofu", name: "板豆腐", calories: 76, protein: 8, carbs: 1.9, fat: 4.8, builtIn: true },
-  { id: "salmon", name: "鮭魚", calories: 208, protein: 20, carbs: 0, fat: 13, builtIn: true },
-  { id: "tuna", name: "鮪魚罐頭水煮", calories: 116, protein: 25.5, carbs: 0, fat: 0.8, builtIn: true },
-  { id: "greek-yogurt", name: "希臘優格無糖", calories: 59, protein: 10.2, carbs: 3.6, fat: 0.4, builtIn: true },
-  { id: "milk", name: "低脂牛奶", calories: 42, protein: 3.4, carbs: 5, fat: 1, builtIn: true },
-  { id: "banana", name: "香蕉", calories: 89, protein: 1.1, carbs: 22.8, fat: 0.3, builtIn: true },
-  { id: "broccoli", name: "花椰菜", calories: 34, protein: 2.8, carbs: 6.6, fat: 0.4, builtIn: true },
-  { id: "pork-loin", name: "豬里肌", calories: 143, protein: 21, carbs: 0, fat: 6, builtIn: true },
+  { id: "raw-skinless-chicken-breast", name: "雞胸（去皮）", calories: 110, protein: 23, unit: "100g", builtIn: true },
+  { id: "raw-skin-on-chicken-breast", name: "雞胸（含皮）", calories: 165, protein: 21, unit: "100g", builtIn: true },
+  { id: "raw-skinless-chicken-leg", name: "雞腿（去皮）", calories: 140, protein: 20, unit: "100g", builtIn: true },
+  { id: "raw-skin-on-chicken-leg", name: "雞腿（含皮）", calories: 210, protein: 18, unit: "100g", builtIn: true },
+  { id: "raw-pork-loin", name: "豬里肌", calories: 140, protein: 22, unit: "100g", builtIn: true },
+  { id: "raw-beef-loin", name: "牛里肌", calories: 150, protein: 22, unit: "100g", builtIn: true },
+  { id: "egg-per-piece", name: "雞蛋（1顆）", calories: 70, protein: 6, unit: "piece", builtIn: true },
 ];
 
 let state = loadState();
@@ -39,18 +34,16 @@ const els = {
   entryTemplate: document.querySelector("#entryTemplate"),
   foodSearch: document.querySelector("#foodSearch"),
   foodSelect: document.querySelector("#foodSelect"),
+  servingLabel: document.querySelector("#servingLabel"),
   servingAmount: document.querySelector("#servingAmount"),
   calcCalories: document.querySelector("#calcCalories"),
   calcProtein: document.querySelector("#calcProtein"),
-  calcCarbsFat: document.querySelector("#calcCarbsFat"),
   addCalculatedFood: document.querySelector("#addCalculatedFood"),
   foodTableBody: document.querySelector("#foodTableBody"),
   foodForm: document.querySelector("#foodForm"),
   foodName: document.querySelector("#foodName"),
   foodCalories: document.querySelector("#foodCalories"),
   foodProtein: document.querySelector("#foodProtein"),
-  foodCarbs: document.querySelector("#foodCarbs"),
-  foodFat: document.querySelector("#foodFat"),
   resetButton: document.querySelector("#resetButton"),
   installButton: document.querySelector("#installButton"),
 };
@@ -107,18 +100,21 @@ function bindEvents() {
   });
 
   els.foodSearch.addEventListener("input", renderFoodTable);
-  els.foodSelect.addEventListener("change", updateCalculator);
+  els.foodSelect.addEventListener("change", () => {
+    setDefaultServingAmount(getSelectedFood());
+    updateCalculator();
+  });
   els.servingAmount.addEventListener("input", updateCalculator);
 
   els.addCalculatedFood.addEventListener("click", () => {
     const food = getSelectedFood();
     if (!food) return;
     const amount = toNumber(els.servingAmount.value);
-    const multiplier = amount / 100;
+    const multiplier = amount / getBaseAmount(food);
     state.entries.push({
       id: createId(),
       date: selectedDate,
-      name: `${food.name} ${formatAmount(amount)}g`,
+      name: `${food.name} ${formatAmount(amount)}${getAmountSuffix(food)}`,
       protein: roundOne(food.protein * multiplier),
       calories: Math.round(food.calories * multiplier),
     });
@@ -133,8 +129,7 @@ function bindEvents() {
       name: els.foodName.value.trim(),
       calories: Math.round(toNumber(els.foodCalories.value)),
       protein: roundOne(toNumber(els.foodProtein.value)),
-      carbs: roundOne(toNumber(els.foodCarbs.value)),
-      fat: roundOne(toNumber(els.foodFat.value)),
+      unit: "100g",
       builtIn: false,
     };
 
@@ -142,8 +137,6 @@ function bindEvents() {
     state.foods.push(food);
     saveState();
     els.foodForm.reset();
-    els.foodCarbs.value = 0;
-    els.foodFat.value = 0;
     renderFoodTools();
   });
 
@@ -273,6 +266,7 @@ function renderFoodSelect() {
   if (state.foods.some((food) => food.id === current)) {
     els.foodSelect.value = current;
   }
+  setDefaultServingAmount(getSelectedFood(), false);
 }
 
 function renderFoodTable() {
@@ -285,10 +279,9 @@ function renderFoodTable() {
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${escapeHtml(food.name)}</td>
+        <td>${getBaseLabel(food)}</td>
         <td>${food.calories} kcal</td>
         <td>${formatAmount(food.protein)} g</td>
-        <td>${formatAmount(food.carbs)} g</td>
-        <td>${formatAmount(food.fat)} g</td>
         <td></td>
       `;
 
@@ -299,6 +292,7 @@ function renderFoodTable() {
       chooseButton.textContent = "計算";
       chooseButton.addEventListener("click", () => {
         els.foodSelect.value = food.id;
+        setDefaultServingAmount(food);
         updateCalculator();
         els.servingAmount.focus();
       });
@@ -324,17 +318,17 @@ function renderFoodTable() {
 function updateCalculator() {
   const food = getSelectedFood();
   const amount = toNumber(els.servingAmount.value);
+  els.servingLabel.textContent = getAmountLabel(food);
+  els.servingAmount.step = food?.unit === "piece" ? "1" : "1";
   if (!food || amount <= 0) {
     els.calcCalories.textContent = "0 kcal";
     els.calcProtein.textContent = "0 g 蛋白質";
-    els.calcCarbsFat.textContent = "0 g 碳水 · 0 g 脂肪";
     return;
   }
 
-  const multiplier = amount / 100;
+  const multiplier = amount / getBaseAmount(food);
   els.calcCalories.textContent = `${Math.round(food.calories * multiplier)} kcal`;
   els.calcProtein.textContent = `${formatAmount(food.protein * multiplier)} g 蛋白質`;
-  els.calcCarbsFat.textContent = `${formatAmount(food.carbs * multiplier)} g 碳水 · ${formatAmount(food.fat * multiplier)} g 脂肪`;
 }
 
 function getSelectedFood() {
@@ -407,8 +401,43 @@ function getStoredSelectedDate(stored) {
 
 function mergeFoods(savedFoods) {
   const byId = new Map(defaultFoods.map((food) => [food.id, food]));
-  savedFoods.forEach((food) => byId.set(food.id, food));
+  savedFoods
+    .filter((food) => !food.builtIn)
+    .map(normalizeCustomFood)
+    .forEach((food) => byId.set(food.id, food));
   return Array.from(byId.values());
+}
+
+function normalizeCustomFood(food) {
+  return {
+    id: food.id || createId(),
+    name: food.name || "自訂食物",
+    calories: Math.round(toNumber(food.calories)),
+    protein: roundOne(toNumber(food.protein)),
+    unit: food.unit === "piece" ? "piece" : "100g",
+    builtIn: false,
+  };
+}
+
+function setDefaultServingAmount(food, force = true) {
+  if (!food || (!force && els.servingAmount.value)) return;
+  els.servingAmount.value = food.unit === "piece" ? "1" : "100";
+}
+
+function getBaseAmount(food) {
+  return food?.unit === "piece" ? 1 : 100;
+}
+
+function getBaseLabel(food) {
+  return food?.unit === "piece" ? "每 1 顆" : "每 100g 生食重";
+}
+
+function getAmountLabel(food) {
+  return food?.unit === "piece" ? "顆數" : "生食重 g";
+}
+
+function getAmountSuffix(food) {
+  return food?.unit === "piece" ? "顆" : "g";
 }
 
 function registerServiceWorker() {

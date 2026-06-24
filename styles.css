@@ -476,7 +476,7 @@ button:focus-visible {
 }
 
 .food-form {
-  grid-template-columns: minmax(200px, 1fr) repeat(4, minmax(120px, 0.7fr)) auto;
+  grid-template-columns: minmax(200px, 1fr) repeat(2, minmax(120px, 0.7fr)) auto;
   align-items: end;
   padding: 0 14px 14px;
 }
