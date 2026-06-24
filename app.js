@@ -1,19 +1,18 @@
 const storageKey = "daily-nutrition-pwa-v1";
 
 const defaultFoods = [
-  { id: "raw-skinless-chicken-breast", name: "雞胸（去皮）", calories: 110, protein: 23, unit: "100g", builtIn: true },
-  { id: "raw-skin-on-chicken-breast", name: "雞胸（含皮）", calories: 165, protein: 21, unit: "100g", builtIn: true },
-  { id: "raw-skinless-chicken-leg", name: "雞腿（去皮）", calories: 140, protein: 20, unit: "100g", builtIn: true },
-  { id: "raw-skin-on-chicken-leg", name: "雞腿（含皮）", calories: 210, protein: 18, unit: "100g", builtIn: true },
-  { id: "raw-pork-loin", name: "豬里肌", calories: 140, protein: 22, unit: "100g", builtIn: true },
-  { id: "raw-beef-loin", name: "牛里肌", calories: 150, protein: 22, unit: "100g", builtIn: true },
-  { id: "egg-per-piece", name: "雞蛋（1顆）", calories: 70, protein: 6, unit: "piece", builtIn: true },
+  { id: "raw-skinless-chicken-breast", name: "雞胸（去皮）", calories: 110, protein: 23, basis: "100g 生食重", builtIn: true },
+  { id: "raw-skin-on-chicken-breast", name: "雞胸（含皮）", calories: 165, protein: 21, basis: "100g 生食重", builtIn: true },
+  { id: "raw-skinless-chicken-leg", name: "雞腿（去皮）", calories: 140, protein: 20, basis: "100g 生食重", builtIn: true },
+  { id: "raw-skin-on-chicken-leg", name: "雞腿（含皮）", calories: 210, protein: 18, basis: "100g 生食重", builtIn: true },
+  { id: "raw-pork-loin", name: "豬里肌", calories: 140, protein: 22, basis: "100g 生食重", builtIn: true },
+  { id: "raw-beef-loin", name: "牛里肌", calories: 150, protein: 22, basis: "100g 生食重", builtIn: true },
+  { id: "egg-per-piece", name: "雞蛋（1顆）", calories: 70, protein: 6, basis: "1顆", builtIn: true },
 ];
 
 let state = loadState();
 let selectedDate = state.lastSelectedDate;
 let visibleMonth = startOfMonth(parseDateInput(selectedDate));
-let deferredInstallPrompt = null;
 let storageWarningShown = false;
 
 const els = {
@@ -23,8 +22,12 @@ const els = {
   nextMonth: document.querySelector("#nextMonth"),
   todayButton: document.querySelector("#todayButton"),
   dayTitle: document.querySelector("#dayTitle"),
+  dailyWeight: document.querySelector("#dailyWeight"),
   dailyCalories: document.querySelector("#dailyCalories"),
   dailyProtein: document.querySelector("#dailyProtein"),
+  weightForm: document.querySelector("#weightForm"),
+  weightInput: document.querySelector("#weightInput"),
+  clearWeightButton: document.querySelector("#clearWeightButton"),
   entryForm: document.querySelector("#entryForm"),
   entryDate: document.querySelector("#entryDate"),
   entryName: document.querySelector("#entryName"),
@@ -41,21 +44,23 @@ const els = {
   foodTableBody: document.querySelector("#foodTableBody"),
   foodForm: document.querySelector("#foodForm"),
   foodName: document.querySelector("#foodName"),
-  foodUnit: document.querySelector("#foodUnit"),
-  foodCaloriesLabel: document.querySelector("#foodCaloriesLabel"),
-  foodProteinLabel: document.querySelector("#foodProteinLabel"),
+  foodBasis: document.querySelector("#foodBasis"),
   foodCalories: document.querySelector("#foodCalories"),
   foodProtein: document.querySelector("#foodProtein"),
+  exportForm: document.querySelector("#exportForm"),
+  exportStartDate: document.querySelector("#exportStartDate"),
+  exportEndDate: document.querySelector("#exportEndDate"),
   resetButton: document.querySelector("#resetButton"),
-  installButton: document.querySelector("#installButton"),
+  updateButton: document.querySelector("#updateButton"),
 };
 
 init();
 
 function init() {
   els.entryDate.value = selectedDate;
+  els.exportStartDate.value = toDateInputValue(startOfMonth(parseDateInput(selectedDate)));
+  els.exportEndDate.value = selectedDate;
   bindEvents();
-  updateCustomFoodUnitLabels();
   render();
   registerServiceWorker();
 }
@@ -108,7 +113,21 @@ function bindEvents() {
     updateCalculator();
   });
   els.servingAmount.addEventListener("input", updateCalculator);
-  els.foodUnit.addEventListener("change", updateCustomFoodUnitLabels);
+
+  els.weightForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const weight = roundOne(toNumber(els.weightInput.value));
+    if (weight <= 0) return;
+    state.weights[selectedDate] = weight;
+    saveState();
+    render();
+  });
+
+  els.clearWeightButton.addEventListener("click", () => {
+    delete state.weights[selectedDate];
+    saveState();
+    render();
+  });
 
   els.foodForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -117,16 +136,20 @@ function bindEvents() {
       name: els.foodName.value.trim(),
       calories: Math.round(toNumber(els.foodCalories.value)),
       protein: roundOne(toNumber(els.foodProtein.value)),
-      unit: getValidUnit(els.foodUnit.value),
+      basis: normalizeBasis(els.foodBasis.value),
       builtIn: false,
     };
 
-    if (!food.name) return;
+    if (!food.name || !food.basis) return;
     state.foods.push(food);
     saveState();
     els.foodForm.reset();
-    updateCustomFoodUnitLabels();
     renderFoodTools();
+  });
+
+  els.exportForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    exportRange(els.exportStartDate.value, els.exportEndDate.value);
   });
 
   els.resetButton.addEventListener("click", () => {
@@ -138,19 +161,7 @@ function bindEvents() {
     render();
   });
 
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-    els.installButton.hidden = false;
-  });
-
-  els.installButton.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    els.installButton.hidden = true;
-  });
+  els.updateButton.addEventListener("click", refreshAppVersion);
 }
 
 function render() {
@@ -175,10 +186,11 @@ function renderCalendar() {
     const date = addDays(gridStart, index);
     const value = toDateInputValue(date);
     const totals = getTotalsForDate(value);
+    const weight = getWeightForDate(value);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "day-button";
-    button.setAttribute("aria-label", `${value}，${totals.calories} kcal，蛋白質 ${formatAmount(totals.protein)} g`);
+    button.setAttribute("aria-label", `${value}，體重 ${formatWeight(weight)} kg，${totals.calories} kcal，蛋白質 ${formatAmount(totals.protein)} g`);
     if (date < monthStart || date > monthEnd) button.classList.add("is-muted");
     if (value === selectedDate) button.classList.add("is-selected");
     if (value === todayValue) button.classList.add("is-today");
@@ -186,10 +198,11 @@ function renderCalendar() {
     button.innerHTML = `
       <span class="day-number">${date.getDate()}</span>
       <span class="day-totals">
+        <span>${formatWeight(weight)} kg</span>
         <span>${totals.calories} kcal</span>
         <span>${formatAmount(totals.protein)} g P</span>
       </span>
-      ${totals.count ? '<span class="day-dot" aria-hidden="true"></span>' : ""}
+      ${totals.count || weight ? '<span class="day-dot" aria-hidden="true"></span>' : ""}
     `;
 
     button.addEventListener("click", () => {
@@ -205,14 +218,17 @@ function renderCalendar() {
 function renderDay() {
   const date = parseDateInput(selectedDate);
   const totals = getTotalsForDate(selectedDate);
+  const weight = getWeightForDate(selectedDate);
   const entries = state.entries
     .filter((entry) => entry.date === selectedDate)
     .sort((a, b) => a.id.localeCompare(b.id));
 
   els.dayTitle.textContent = formatDateTitle(date);
+  els.dailyWeight.textContent = formatWeight(weight);
   els.dailyCalories.textContent = totals.calories;
   els.dailyProtein.textContent = formatAmount(totals.protein);
   els.entryDate.value = selectedDate;
+  els.weightInput.value = weight ? formatAmount(weight) : "";
   els.entryList.innerHTML = "";
 
   if (!entries.length) {
@@ -255,7 +271,7 @@ function renderFoodSelect() {
   if (state.foods.some((food) => food.id === current)) {
     els.foodSelect.value = current;
   }
-  setDefaultServingAmount(getSelectedFood(), false);
+  setDefaultServingAmount(false);
 }
 
 function renderFoodTable() {
@@ -268,7 +284,7 @@ function renderFoodTable() {
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${escapeHtml(food.name)}</td>
-        <td>${getBaseLabel(food)}</td>
+        <td>${escapeHtml(getBaseLabel(food))}</td>
         <td>${food.calories} kcal</td>
         <td>${formatAmount(food.protein)} g</td>
         <td></td>
@@ -281,7 +297,7 @@ function renderFoodTable() {
       chooseButton.textContent = "計算";
       chooseButton.addEventListener("click", () => {
         els.foodSelect.value = food.id;
-        setDefaultServingAmount(food);
+        setDefaultServingAmount();
         updateCalculator();
         els.servingAmount.focus();
       });
@@ -306,18 +322,17 @@ function renderFoodTable() {
 
 function updateCalculator() {
   const food = getSelectedFood();
-  const amount = toNumber(els.servingAmount.value);
-  els.servingLabel.textContent = getAmountLabel(food);
-  els.servingAmount.step = food?.unit === "serving" ? "0.1" : "1";
-  if (!food || amount <= 0) {
+  const servings = toNumber(els.servingAmount.value);
+  els.servingLabel.textContent = "份數";
+  els.servingAmount.step = "0.1";
+  if (!food || servings <= 0) {
     els.calcCalories.textContent = "0 kcal";
     els.calcProtein.textContent = "0 g 蛋白質";
     return;
   }
 
-  const multiplier = amount / getBaseAmount(food);
-  els.calcCalories.textContent = `${Math.round(food.calories * multiplier)} kcal`;
-  els.calcProtein.textContent = `${formatAmount(food.protein * multiplier)} g 蛋白質`;
+  els.calcCalories.textContent = `${Math.round(food.calories * servings)} kcal`;
+  els.calcProtein.textContent = `${formatAmount(food.protein * servings)} g 蛋白質`;
 }
 
 function getSelectedFood() {
@@ -335,6 +350,11 @@ function getTotalsForDate(dateValue) {
     },
     { calories: 0, protein: 0, count: 0 },
   );
+}
+
+function getWeightForDate(dateValue) {
+  const weight = Number(state.weights?.[dateValue]);
+  return Number.isFinite(weight) && weight > 0 ? weight : null;
 }
 
 function setSelectedDate(dateValue, shouldSave = true) {
@@ -355,6 +375,7 @@ function loadState() {
     return {
       entries: stored.entries,
       foods: mergeFoods(stored.foods),
+      weights: normalizeWeights(stored.weights),
       lastSelectedDate: getStoredSelectedDate(stored),
     };
   } catch {
@@ -373,10 +394,78 @@ function saveState() {
   }
 }
 
+async function refreshAppVersion() {
+  const originalText = els.updateButton.querySelector(".button-text").textContent;
+  els.updateButton.disabled = true;
+  els.updateButton.querySelector(".button-text").textContent = "更新中";
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+  } finally {
+    els.updateButton.querySelector(".button-text").textContent = originalText;
+    const url = new URL(window.location.href);
+    url.searchParams.set("refresh", Date.now().toString());
+    window.location.replace(url.toString());
+  }
+}
+
+function exportRange(startValue, endValue) {
+  if (!isDateInputValue(startValue) || !isDateInputValue(endValue)) return;
+
+  const start = parseDateInput(startValue);
+  const end = parseDateInput(endValue);
+  if (start > end) {
+    window.alert("開始日期不能晚於結束日期。");
+    return;
+  }
+
+  const rows = [["日期", "體重kg", "熱量kcal", "蛋白質g"]];
+  for (let date = new Date(start); date <= end; date = addDays(date, 1)) {
+    const dateValue = toDateInputValue(date);
+    const totals = getTotalsForDate(dateValue);
+    rows.push([
+      dateValue,
+      formatWeight(getWeightForDate(dateValue), ""),
+      String(totals.calories),
+      formatAmount(totals.protein),
+    ]);
+  }
+
+  const csv = `\uFEFF${rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n")}`;
+  const filename = `nutrition-${startValue}-to-${endValue}.csv`;
+  downloadTextFile(filename, csv, "text/csv;charset=utf-8");
+}
+
+function escapeCsvCell(value) {
+  const text = String(value ?? "");
+  if (!/[",\r\n]/.test(text)) return text;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function downloadTextFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function createDefaultState() {
   return {
     entries: [],
     foods: [...defaultFoods],
+    weights: {},
     lastSelectedDate: toDateInputValue(new Date()),
   };
 }
@@ -403,50 +492,37 @@ function normalizeCustomFood(food) {
     name: food.name || "自訂食物",
     calories: Math.round(toNumber(food.calories)),
     protein: roundOne(toNumber(food.protein)),
-    unit: getValidUnit(food.unit),
+    basis: normalizeBasis(food.basis || getLegacyBasis(food.unit)),
     builtIn: false,
   };
 }
 
-function setDefaultServingAmount(food, force = true) {
-  if (!food || (!force && els.servingAmount.value)) return;
-  els.servingAmount.value = food.unit === "100g" ? "100" : "1";
-}
-
-function getBaseAmount(food) {
-  return food?.unit === "100g" ? 100 : 1;
+function normalizeWeights(weights) {
+  if (!weights || typeof weights !== "object") return {};
+  return Object.entries(weights).reduce((normalized, [date, weight]) => {
+    const value = roundOne(weight);
+    if (isDateInputValue(date) && value > 0) normalized[date] = value;
+    return normalized;
+  }, {});
 }
 
 function getBaseLabel(food) {
-  if (food?.unit === "piece") return "每 1 顆";
-  if (food?.unit === "serving") return "每 1 份";
-  return "每 100g 生食重";
+  return `每 ${normalizeBasis(food?.basis || getLegacyBasis(food?.unit))}`;
 }
 
-function getAmountLabel(food) {
-  if (food?.unit === "piece") return "顆數";
-  if (food?.unit === "serving") return "份數";
-  return "生食重 g";
+function setDefaultServingAmount(force = true) {
+  if (!force && els.servingAmount.value) return;
+  els.servingAmount.value = "1";
 }
 
-function getValidUnit(unit) {
-  return ["100g", "piece", "serving"].includes(unit) ? unit : "100g";
+function normalizeBasis(value) {
+  return String(value || "").trim().replace(/\s+/g, " ");
 }
 
-function updateCustomFoodUnitLabels() {
-  const unit = getValidUnit(els.foodUnit.value);
-  if (unit === "piece") {
-    els.foodCaloriesLabel.textContent = "熱量 kcal / 1 顆";
-    els.foodProteinLabel.textContent = "蛋白質 g / 1 顆";
-    return;
-  }
-  if (unit === "serving") {
-    els.foodCaloriesLabel.textContent = "熱量 kcal / 1 份";
-    els.foodProteinLabel.textContent = "蛋白質 g / 1 份";
-    return;
-  }
-  els.foodCaloriesLabel.textContent = "熱量 kcal / 100g 生食重";
-  els.foodProteinLabel.textContent = "蛋白質 g / 100g 生食重";
+function getLegacyBasis(unit) {
+  if (unit === "piece") return "1顆";
+  if (unit === "serving") return "1份";
+  return "100g 生食重";
 }
 
 function registerServiceWorker() {
@@ -497,6 +573,13 @@ function formatDateTitle(date) {
 }
 
 function formatAmount(value) {
+  return roundOne(value).toLocaleString("zh-Hant-TW", {
+    maximumFractionDigits: 1,
+  });
+}
+
+function formatWeight(value, emptyValue = "--") {
+  if (!value) return emptyValue;
   return roundOne(value).toLocaleString("zh-Hant-TW", {
     maximumFractionDigits: 1,
   });
