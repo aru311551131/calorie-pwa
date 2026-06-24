@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="每日營養 app icon">
+  <rect width="512" height="512" rx="96" fill="#f7f8f5"/>
+  <path d="M112 148c0-19.9 16.1-36 36-36h216c19.9 0 36 16.1 36 36v216c0 19.9-16.1 36-36 36H148c-19.9 0-36-16.1-36-36V148Z" fill="#ffffff" stroke="#dbe1da" stroke-width="16"/>
+  <path d="M160 184h192" stroke="#2f7d5c" stroke-width="28" stroke-linecap="round"/>
+  <path d="M160 256h104" stroke="#bd4d3a" stroke-width="28" stroke-linecap="round"/>
+  <path d="M160 328h160" stroke="#d59a31" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="350" cy="256" r="30" fill="#2f7d5c"/>
+</svg>

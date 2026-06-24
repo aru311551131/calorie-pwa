@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f7f8f5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="每日營養" />
+    <title>每日營養紀錄</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PWA Nutrition Tracker</p>
+          <h1>每日營養紀錄</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="installButton" type="button" hidden title="安裝到裝置">
+            <span aria-hidden="true">↓</span>
+            <span class="button-text">安裝</span>
+          </button>
+          <button class="icon-button danger" id="resetButton" type="button" title="清除所有本機資料">
+            <span aria-hidden="true">×</span>
+            <span class="button-text">重置</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="calendar-pane" aria-labelledby="calendarTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Calendar</p>
+              <h2 id="calendarTitle">日曆</h2>
+            </div>
+            <div class="month-controls">
+              <button class="square-button" id="prevMonth" type="button" title="上一個月">‹</button>
+              <button class="square-button" id="todayButton" type="button">今天</button>
+              <button class="square-button" id="nextMonth" type="button" title="下一個月">›</button>
+            </div>
+          </div>
+          <div class="month-label" id="monthLabel"></div>
+          <div class="weekday-grid" aria-hidden="true">
+            <span>一</span>
+            <span>二</span>
+            <span>三</span>
+            <span>四</span>
+            <span>五</span>
+            <span>六</span>
+            <span>日</span>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </section>
+
+        <section class="day-pane" aria-labelledby="dayTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Daily Log</p>
+              <h2 id="dayTitle">選取日期</h2>
+            </div>
+            <div class="summary-strip" aria-label="當日加總">
+              <div>
+                <span id="dailyCalories">0</span>
+                <small>kcal</small>
+              </div>
+              <div>
+                <span id="dailyProtein">0</span>
+                <small>g 蛋白質</small>
+              </div>
+            </div>
+          </div>
+
+          <form class="entry-form" id="entryForm">
+            <label>
+              日期
+              <input id="entryDate" type="date" required />
+            </label>
+            <label>
+              食物名稱
+              <input id="entryName" type="text" placeholder="例如：雞胸肉便當" autocomplete="off" required />
+            </label>
+            <label>
+              蛋白質 g
+              <input id="entryProtein" type="number" min="0" step="0.1" inputmode="decimal" required />
+            </label>
+            <label>
+              熱量 kcal
+              <input id="entryCalories" type="number" min="0" step="1" inputmode="decimal" required />
+            </label>
+            <button class="primary-button" type="submit">加入紀錄</button>
+          </form>
+
+          <div class="entry-list" id="entryList" aria-live="polite"></div>
+        </section>
+
+        <section class="food-pane" aria-labelledby="foodTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Food Table</p>
+              <h2 id="foodTitle">營養素分布表</h2>
+            </div>
+            <input class="search-input" id="foodSearch" type="search" placeholder="搜尋食物" />
+          </div>
+
+          <div class="calculator-row">
+            <label>
+              食物
+              <select id="foodSelect"></select>
+            </label>
+            <label>
+              份量 g
+              <input id="servingAmount" type="number" min="0" step="1" inputmode="decimal" value="100" />
+            </label>
+            <div class="calculator-output" aria-label="份量計算結果">
+              <strong id="calcCalories">0 kcal</strong>
+              <span id="calcProtein">0 g 蛋白質</span>
+              <span id="calcCarbsFat">0 g 碳水 · 0 g 脂肪</span>
+            </div>
+            <button class="secondary-button" id="addCalculatedFood" type="button">加入選取日</button>
+          </div>
+
+          <div class="food-table-wrap">
+            <table class="food-table">
+              <thead>
+                <tr>
+                  <th>食物</th>
+                  <th>每 100g 熱量</th>
+                  <th>蛋白質</th>
+                  <th>碳水</th>
+                  <th>脂肪</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="foodTableBody"></tbody>
+            </table>
+          </div>
+
+          <details class="custom-food">
+            <summary>新增自己的食物到營養表</summary>
+            <form id="foodForm" class="food-form">
+              <label>
+                食物名稱
+                <input id="foodName" type="text" placeholder="例如：常買的雞肉沙拉" required />
+              </label>
+              <label>
+                熱量 kcal / 100g
+                <input id="foodCalories" type="number" min="0" step="1" inputmode="decimal" required />
+              </label>
+              <label>
+                蛋白質 g / 100g
+                <input id="foodProtein" type="number" min="0" step="0.1" inputmode="decimal" required />
+              </label>
+              <label>
+                碳水 g / 100g
+                <input id="foodCarbs" type="number" min="0" step="0.1" inputmode="decimal" value="0" />
+              </label>
+              <label>
+                脂肪 g / 100g
+                <input id="foodFat" type="number" min="0" step="0.1" inputmode="decimal" value="0" />
+              </label>
+              <button class="primary-button" type="submit">新增食物</button>
+            </form>
+          </details>
+        </section>
+      </main>
+    </div>
+
+    <template id="entryTemplate">
+      <article class="entry-item">
+        <div>
+          <h3></h3>
+          <p></p>
+        </div>
+        <button class="text-button danger" type="button">刪除</button>
+      </article>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
