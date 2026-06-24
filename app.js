@@ -16,9 +16,10 @@ const defaultFoods = [
 ];
 
 let state = loadState();
-let selectedDate = toDateInputValue(new Date());
-let visibleMonth = startOfMonth(new Date());
+let selectedDate = state.lastSelectedDate;
+let visibleMonth = startOfMonth(parseDateInput(selectedDate));
 let deferredInstallPrompt = null;
+let storageWarningShown = false;
 
 const els = {
   monthLabel: document.querySelector("#monthLabel"),
@@ -75,16 +76,13 @@ function bindEvents() {
   });
 
   els.todayButton.addEventListener("click", () => {
-    selectedDate = toDateInputValue(new Date());
-    visibleMonth = startOfMonth(new Date());
-    els.entryDate.value = selectedDate;
+    setSelectedDate(toDateInputValue(new Date()));
     render();
   });
 
   els.entryDate.addEventListener("change", (event) => {
     if (!event.target.value) return;
-    selectedDate = event.target.value;
-    visibleMonth = startOfMonth(parseDateInput(selectedDate));
+    setSelectedDate(event.target.value);
     render();
   });
 
@@ -100,11 +98,10 @@ function bindEvents() {
 
     if (!entry.name || !entry.date) return;
     state.entries.push(entry);
+    setSelectedDate(entry.date, false);
     saveState();
     els.entryForm.reset();
     els.entryDate.value = entry.date;
-    selectedDate = entry.date;
-    visibleMonth = startOfMonth(parseDateInput(selectedDate));
     render();
     els.entryName.focus();
   });
@@ -154,6 +151,7 @@ function bindEvents() {
     const confirmed = window.confirm("確定要清除所有本機紀錄和自訂食物嗎？這個動作不能復原。");
     if (!confirmed) return;
     state = createDefaultState();
+    setSelectedDate(state.lastSelectedDate, false);
     saveState();
     render();
   });
@@ -213,8 +211,7 @@ function renderCalendar() {
     `;
 
     button.addEventListener("click", () => {
-      selectedDate = value;
-      els.entryDate.value = value;
+      setSelectedDate(value);
       renderCalendar();
       renderDay();
     });
@@ -357,6 +354,15 @@ function getTotalsForDate(dateValue) {
   );
 }
 
+function setSelectedDate(dateValue, shouldSave = true) {
+  if (!isDateInputValue(dateValue)) return;
+  selectedDate = dateValue;
+  state.lastSelectedDate = dateValue;
+  visibleMonth = startOfMonth(parseDateInput(dateValue));
+  els.entryDate.value = dateValue;
+  if (shouldSave) saveState();
+}
+
 function loadState() {
   try {
     const stored = JSON.parse(window.localStorage.getItem(storageKey));
@@ -366,6 +372,7 @@ function loadState() {
     return {
       entries: stored.entries,
       foods: mergeFoods(stored.foods),
+      lastSelectedDate: getStoredSelectedDate(stored),
     };
   } catch {
     return createDefaultState();
@@ -373,14 +380,29 @@ function loadState() {
 }
 
 function saveState() {
-  window.localStorage.setItem(storageKey, JSON.stringify(state));
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(state));
+  } catch {
+    if (!storageWarningShown) {
+      storageWarningShown = true;
+      window.alert("瀏覽器目前沒有允許本機儲存，關閉分頁後資料可能不會保留。請確認不是私密瀏覽，並允許網站資料儲存。");
+    }
+  }
 }
 
 function createDefaultState() {
   return {
     entries: [],
     foods: [...defaultFoods],
+    lastSelectedDate: toDateInputValue(new Date()),
   };
+}
+
+function getStoredSelectedDate(stored) {
+  if (isDateInputValue(stored.lastSelectedDate)) return stored.lastSelectedDate;
+  const entryDates = stored.entries.map((entry) => entry.date).filter(isDateInputValue);
+  if (entryDates.length) return entryDates.sort()[entryDates.length - 1];
+  return toDateInputValue(new Date());
 }
 
 function mergeFoods(savedFoods) {
@@ -406,6 +428,12 @@ function toDateInputValue(date) {
 function parseDateInput(value) {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year, month - 1, day);
+}
+
+function isDateInputValue(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = parseDateInput(value);
+  return toDateInputValue(date) === value;
 }
 
 function startOfMonth(date) {
