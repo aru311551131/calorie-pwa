@@ -121,7 +121,6 @@
               <strong id="calcCalories">0 kcal</strong>
               <span id="calcProtein">0 g 蛋白質</span>
             </div>
-            <button class="secondary-button" id="addCalculatedFood" type="button">加入選取日</button>
           </div>
 
           <div class="food-table-wrap">
@@ -147,11 +146,19 @@
                 <input id="foodName" type="text" placeholder="例如：常買的雞肉沙拉" required />
               </label>
               <label>
-                熱量 kcal / 100g 生食重
+                基準
+                <select id="foodUnit">
+                  <option value="100g">每 100g 生食重</option>
+                  <option value="piece">每 1 顆</option>
+                  <option value="serving">每 1 份</option>
+                </select>
+              </label>
+              <label>
+                <span id="foodCaloriesLabel">熱量 kcal / 100g 生食重</span>
                 <input id="foodCalories" type="number" min="0" step="1" inputmode="decimal" required />
               </label>
               <label>
-                蛋白質 g / 100g 生食重
+                <span id="foodProteinLabel">蛋白質 g / 100g 生食重</span>
                 <input id="foodProtein" type="number" min="0" step="0.1" inputmode="decimal" required />
               </label>
               <button class="primary-button" type="submit">新增食物</button>

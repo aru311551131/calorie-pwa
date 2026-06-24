@@ -38,10 +38,12 @@ const els = {
   servingAmount: document.querySelector("#servingAmount"),
   calcCalories: document.querySelector("#calcCalories"),
   calcProtein: document.querySelector("#calcProtein"),
-  addCalculatedFood: document.querySelector("#addCalculatedFood"),
   foodTableBody: document.querySelector("#foodTableBody"),
   foodForm: document.querySelector("#foodForm"),
   foodName: document.querySelector("#foodName"),
+  foodUnit: document.querySelector("#foodUnit"),
+  foodCaloriesLabel: document.querySelector("#foodCaloriesLabel"),
+  foodProteinLabel: document.querySelector("#foodProteinLabel"),
   foodCalories: document.querySelector("#foodCalories"),
   foodProtein: document.querySelector("#foodProtein"),
   resetButton: document.querySelector("#resetButton"),
@@ -53,6 +55,7 @@ init();
 function init() {
   els.entryDate.value = selectedDate;
   bindEvents();
+  updateCustomFoodUnitLabels();
   render();
   registerServiceWorker();
 }
@@ -105,22 +108,7 @@ function bindEvents() {
     updateCalculator();
   });
   els.servingAmount.addEventListener("input", updateCalculator);
-
-  els.addCalculatedFood.addEventListener("click", () => {
-    const food = getSelectedFood();
-    if (!food) return;
-    const amount = toNumber(els.servingAmount.value);
-    const multiplier = amount / getBaseAmount(food);
-    state.entries.push({
-      id: createId(),
-      date: selectedDate,
-      name: `${food.name} ${formatAmount(amount)}${getAmountSuffix(food)}`,
-      protein: roundOne(food.protein * multiplier),
-      calories: Math.round(food.calories * multiplier),
-    });
-    saveState();
-    render();
-  });
+  els.foodUnit.addEventListener("change", updateCustomFoodUnitLabels);
 
   els.foodForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -129,7 +117,7 @@ function bindEvents() {
       name: els.foodName.value.trim(),
       calories: Math.round(toNumber(els.foodCalories.value)),
       protein: roundOne(toNumber(els.foodProtein.value)),
-      unit: "100g",
+      unit: getValidUnit(els.foodUnit.value),
       builtIn: false,
     };
 
@@ -137,6 +125,7 @@ function bindEvents() {
     state.foods.push(food);
     saveState();
     els.foodForm.reset();
+    updateCustomFoodUnitLabels();
     renderFoodTools();
   });
 
@@ -319,7 +308,7 @@ function updateCalculator() {
   const food = getSelectedFood();
   const amount = toNumber(els.servingAmount.value);
   els.servingLabel.textContent = getAmountLabel(food);
-  els.servingAmount.step = food?.unit === "piece" ? "1" : "1";
+  els.servingAmount.step = food?.unit === "serving" ? "0.1" : "1";
   if (!food || amount <= 0) {
     els.calcCalories.textContent = "0 kcal";
     els.calcProtein.textContent = "0 g 蛋白質";
@@ -414,30 +403,50 @@ function normalizeCustomFood(food) {
     name: food.name || "自訂食物",
     calories: Math.round(toNumber(food.calories)),
     protein: roundOne(toNumber(food.protein)),
-    unit: food.unit === "piece" ? "piece" : "100g",
+    unit: getValidUnit(food.unit),
     builtIn: false,
   };
 }
 
 function setDefaultServingAmount(food, force = true) {
   if (!food || (!force && els.servingAmount.value)) return;
-  els.servingAmount.value = food.unit === "piece" ? "1" : "100";
+  els.servingAmount.value = food.unit === "100g" ? "100" : "1";
 }
 
 function getBaseAmount(food) {
-  return food?.unit === "piece" ? 1 : 100;
+  return food?.unit === "100g" ? 100 : 1;
 }
 
 function getBaseLabel(food) {
-  return food?.unit === "piece" ? "每 1 顆" : "每 100g 生食重";
+  if (food?.unit === "piece") return "每 1 顆";
+  if (food?.unit === "serving") return "每 1 份";
+  return "每 100g 生食重";
 }
 
 function getAmountLabel(food) {
-  return food?.unit === "piece" ? "顆數" : "生食重 g";
+  if (food?.unit === "piece") return "顆數";
+  if (food?.unit === "serving") return "份數";
+  return "生食重 g";
 }
 
-function getAmountSuffix(food) {
-  return food?.unit === "piece" ? "顆" : "g";
+function getValidUnit(unit) {
+  return ["100g", "piece", "serving"].includes(unit) ? unit : "100g";
+}
+
+function updateCustomFoodUnitLabels() {
+  const unit = getValidUnit(els.foodUnit.value);
+  if (unit === "piece") {
+    els.foodCaloriesLabel.textContent = "熱量 kcal / 1 顆";
+    els.foodProteinLabel.textContent = "蛋白質 g / 1 顆";
+    return;
+  }
+  if (unit === "serving") {
+    els.foodCaloriesLabel.textContent = "熱量 kcal / 1 份";
+    els.foodProteinLabel.textContent = "蛋白質 g / 1 份";
+    return;
+  }
+  els.foodCaloriesLabel.textContent = "熱量 kcal / 100g 生食重";
+  els.foodProteinLabel.textContent = "蛋白質 g / 100g 生食重";
 }
 
 function registerServiceWorker() {

@@ -402,7 +402,7 @@ button:focus-visible {
 }
 
 .calculator-row {
-  grid-template-columns: minmax(220px, 1fr) 120px minmax(260px, 1.1fr) auto;
+  grid-template-columns: minmax(220px, 1fr) 120px minmax(260px, 1.1fr);
   align-items: end;
   padding: 14px;
   margin-bottom: 14px;
@@ -476,7 +476,7 @@ button:focus-visible {
 }
 
 .food-form {
-  grid-template-columns: minmax(200px, 1fr) repeat(2, minmax(120px, 0.7fr)) auto;
+  grid-template-columns: minmax(200px, 1fr) minmax(150px, 0.7fr) repeat(2, minmax(120px, 0.7fr)) auto;
   align-items: end;
   padding: 0 14px 14px;
 }
