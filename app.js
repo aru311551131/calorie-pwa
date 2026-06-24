@@ -116,7 +116,7 @@ function bindEvents() {
 
   els.weightForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    const weight = roundOne(toNumber(els.weightInput.value));
+    const weight = roundWeight(toNumber(els.weightInput.value));
     if (weight <= 0) return;
     state.weights[selectedDate] = weight;
     saveState();
@@ -228,7 +228,7 @@ function renderDay() {
   els.dailyCalories.textContent = totals.calories;
   els.dailyProtein.textContent = formatAmount(totals.protein);
   els.entryDate.value = selectedDate;
-  els.weightInput.value = weight ? formatAmount(weight) : "";
+  els.weightInput.value = weight ? formatWeight(weight, "") : "";
   els.entryList.innerHTML = "";
 
   if (!entries.length) {
@@ -500,7 +500,7 @@ function normalizeCustomFood(food) {
 function normalizeWeights(weights) {
   if (!weights || typeof weights !== "object") return {};
   return Object.entries(weights).reduce((normalized, [date, weight]) => {
-    const value = roundOne(weight);
+    const value = roundWeight(weight);
     if (isDateInputValue(date) && value > 0) normalized[date] = value;
     return normalized;
   }, {});
@@ -580,9 +580,13 @@ function formatAmount(value) {
 
 function formatWeight(value, emptyValue = "--") {
   if (!value) return emptyValue;
-  return roundOne(value).toLocaleString("zh-Hant-TW", {
-    maximumFractionDigits: 1,
+  return roundWeight(value).toLocaleString("zh-Hant-TW", {
+    maximumFractionDigits: 2,
   });
+}
+
+function roundWeight(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function roundOne(value) {
