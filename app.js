@@ -187,10 +187,11 @@ function renderCalendar() {
     const value = toDateInputValue(date);
     const totals = getTotalsForDate(value);
     const weight = getWeightForDate(value);
+    const calendarTotals = getCalendarTotalsDisplay(totals, weight);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "day-button";
-    button.setAttribute("aria-label", `${value}，體重 ${formatWeight(weight)} kg，${totals.calories} kcal，蛋白質 ${formatAmount(totals.protein)} g`);
+    button.setAttribute("aria-label", `${value}，體重 ${formatWeight(weight)} kg，${calendarTotals.calories}，蛋白質 ${calendarTotals.protein}`);
     if (date < monthStart || date > monthEnd) button.classList.add("is-muted");
     if (value === selectedDate) button.classList.add("is-selected");
     if (value === todayValue) button.classList.add("is-today");
@@ -199,8 +200,8 @@ function renderCalendar() {
       <span class="day-number">${date.getDate()}</span>
       <span class="day-totals">
         <span>${formatWeight(weight)} kg</span>
-        <span>${totals.calories} kcal</span>
-        <span>${formatAmount(totals.protein)} g P</span>
+        <span>${calendarTotals.calories}</span>
+        <span>${calendarTotals.protein}</span>
       </span>
       ${totals.count || weight ? '<span class="day-dot" aria-hidden="true"></span>' : ""}
     `;
@@ -350,6 +351,19 @@ function getTotalsForDate(dateValue) {
     },
     { calories: 0, protein: 0, count: 0 },
   );
+}
+
+function getCalendarTotalsDisplay(totals, weight) {
+  if (weight && totals.count === 0) {
+    return {
+      calories: "XXXX kcal",
+      protein: "XXX g P",
+    };
+  }
+  return {
+    calories: `${totals.calories} kcal`,
+    protein: `${formatAmount(totals.protein)} g P`,
+  };
 }
 
 function getWeightForDate(dateValue) {
