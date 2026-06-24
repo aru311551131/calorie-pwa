@@ -116,7 +116,7 @@ function bindEvents() {
 
   els.weightForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    const weight = roundWeight(toNumber(els.weightInput.value));
+    const weight = roundWeight(toDecimalNumber(els.weightInput.value));
     if (weight <= 0) return;
     state.weights[selectedDate] = weight;
     saveState();
@@ -595,6 +595,10 @@ function roundOne(value) {
 
 function toNumber(value) {
   return Number.parseFloat(value) || 0;
+}
+
+function toDecimalNumber(value) {
+  return Number.parseFloat(String(value).trim().replace(",", ".")) || 0;
 }
 
 function createId() {
