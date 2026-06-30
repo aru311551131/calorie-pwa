@@ -13,7 +13,18 @@
 - 內建肉品生食重與雞蛋營養表
 - 依份數快速試算營養素
 - 新增自己的食物到營養表，並自由設定基準文字
+- Email 登入後同步到 Supabase
 - PWA manifest 與 Service Worker，可安裝到手機主畫面並離線開啟
+
+## Supabase 設定
+
+1. 到 Supabase Project 的 `SQL Editor`。
+2. 執行 `supabase-schema.sql`。
+3. 到 `Authentication` -> `URL Configuration`。
+4. `Site URL` 設成 `https://aru311551131.github.io/calorie-pwa/`。
+5. 如果有 `Redirect URLs`，加入 `https://aru311551131.github.io/calorie-pwa/`。
+
+登入後，app 會把目前本機資料和雲端資料合併，再同步到 Supabase。未登入時仍可用本機模式。
 
 ## GitHub Pages 部署
 

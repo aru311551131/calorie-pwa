@@ -32,6 +32,25 @@
         </div>
       </header>
 
+      <section class="auth-pane" aria-labelledby="authTitle">
+        <div>
+          <p class="eyebrow">Cloud Sync</p>
+          <h2 id="authTitle">信箱登入同步</h2>
+          <p class="auth-status" id="authStatus">未登入，本機資料只會留在這台裝置。</p>
+        </div>
+        <form class="auth-form" id="authForm">
+          <label>
+            Email
+            <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+          </label>
+          <button class="primary-button" type="submit">寄送登入信</button>
+        </form>
+        <div class="auth-actions">
+          <button class="secondary-button" id="manualSyncButton" type="button" disabled>立即同步</button>
+          <button class="text-button danger" id="signOutButton" type="button" hidden>登出</button>
+        </div>
+      </section>
+
       <main class="workspace">
         <section class="calendar-pane" aria-labelledby="calendarTitle">
           <div class="section-head">
@@ -207,6 +226,7 @@
       </article>
     </template>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

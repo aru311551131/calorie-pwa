@@ -188,6 +188,40 @@ button:disabled {
   align-items: start;
 }
 
+.auth-pane {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, 0.9fr) auto;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.auth-pane h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.auth-status {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.auth-form,
+.auth-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-actions {
+  grid-template-columns: auto auto;
+}
+
 .calendar-pane,
 .day-pane,
 .export-pane,
@@ -527,12 +561,18 @@ button:focus-visible {
   }
 
   .topbar,
+  .auth-pane,
   .section-head {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .auth-pane {
+    display: flex;
+  }
+
   .topbar-actions,
+  .auth-actions,
   .month-controls {
     width: 100%;
   }

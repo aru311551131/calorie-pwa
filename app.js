@@ -1,4 +1,8 @@
 const storageKey = "daily-nutrition-pwa-v1";
+const supabaseUrl = "https://cxewqhmfpqcsfjqdokud.supabase.co";
+const supabaseAnonKey = "sb_publishable_Jz2mLPi94Dp7Vkve2XcGoQ_a9E5u8BG";
+const cloudTableName = "nutrition_states";
+const cloudClient = window.supabase?.createClient(supabaseUrl, supabaseAnonKey) || null;
 
 const defaultFoods = [
   { id: "raw-skinless-chicken-breast", name: "雞胸（去皮）", calories: 110, protein: 23, basis: "100g 生食重", builtIn: true },
@@ -14,6 +18,9 @@ let state = loadState();
 let selectedDate = state.lastSelectedDate;
 let visibleMonth = startOfMonth(parseDateInput(selectedDate));
 let storageWarningShown = false;
+let currentUser = null;
+let syncTimer = null;
+let isApplyingCloudState = false;
 
 const els = {
   monthLabel: document.querySelector("#monthLabel"),
@@ -52,6 +59,11 @@ const els = {
   exportEndDate: document.querySelector("#exportEndDate"),
   resetButton: document.querySelector("#resetButton"),
   updateButton: document.querySelector("#updateButton"),
+  authForm: document.querySelector("#authForm"),
+  authEmail: document.querySelector("#authEmail"),
+  authStatus: document.querySelector("#authStatus"),
+  manualSyncButton: document.querySelector("#manualSyncButton"),
+  signOutButton: document.querySelector("#signOutButton"),
 };
 
 init();
@@ -63,6 +75,7 @@ function init() {
   bindEvents();
   render();
   registerServiceWorker();
+  initCloudAuth();
 }
 
 function bindEvents() {
@@ -162,6 +175,19 @@ function bindEvents() {
   });
 
   els.updateButton.addEventListener("click", refreshAppVersion);
+
+  els.authForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await sendLoginEmail();
+  });
+
+  els.manualSyncButton.addEventListener("click", async () => {
+    await syncCloudState();
+  });
+
+  els.signOutButton.addEventListener("click", async () => {
+    await signOut();
+  });
 }
 
 function render() {
@@ -383,15 +409,7 @@ function setSelectedDate(dateValue, shouldSave = true) {
 function loadState() {
   try {
     const stored = JSON.parse(window.localStorage.getItem(storageKey));
-    if (!stored || !Array.isArray(stored.entries) || !Array.isArray(stored.foods)) {
-      return createDefaultState();
-    }
-    return {
-      entries: stored.entries,
-      foods: mergeFoods(stored.foods),
-      weights: normalizeWeights(stored.weights),
-      lastSelectedDate: getStoredSelectedDate(stored),
-    };
+    return normalizeStoredState(stored);
   } catch {
     return createDefaultState();
   }
@@ -400,12 +418,188 @@ function loadState() {
 function saveState() {
   try {
     window.localStorage.setItem(storageKey, JSON.stringify(state));
+    if (!isApplyingCloudState) scheduleCloudSave();
   } catch {
     if (!storageWarningShown) {
       storageWarningShown = true;
       window.alert("瀏覽器目前沒有允許本機儲存，關閉分頁後資料可能不會保留。請確認不是私密瀏覽，並允許網站資料儲存。");
     }
   }
+}
+
+async function initCloudAuth() {
+  if (!cloudClient) {
+    setAuthStatus("無法載入雲端同步套件，本機模式仍可使用。");
+    return;
+  }
+
+  setAuthStatus("檢查登入狀態中...");
+  const { data, error } = await cloudClient.auth.getSession();
+  if (error) {
+    setAuthStatus(`登入狀態讀取失敗：${error.message}`);
+    return;
+  }
+
+  await handleCloudSession(data.session);
+  cloudClient.auth.onAuthStateChange((_event, session) => {
+    handleCloudSession(session);
+  });
+}
+
+async function sendLoginEmail() {
+  if (!cloudClient) {
+    setAuthStatus("雲端同步套件尚未載入，請稍後再試。");
+    return;
+  }
+
+  const email = els.authEmail.value.trim();
+  if (!email) return;
+
+  setAuthStatus("寄送登入信中...");
+  const { error } = await cloudClient.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl(),
+    },
+  });
+
+  if (error) {
+    setAuthStatus(`登入信寄送失敗：${error.message}`);
+    return;
+  }
+
+  setAuthStatus("登入信已寄出，請到信箱點連結。");
+}
+
+async function signOut() {
+  if (!cloudClient) return;
+  await cloudClient.auth.signOut();
+  currentUser = null;
+  updateAuthUi();
+  setAuthStatus("已登出，本機資料仍保留在這台裝置。");
+}
+
+async function handleCloudSession(session) {
+  currentUser = session?.user || null;
+  updateAuthUi();
+  if (!currentUser) {
+    setAuthStatus("未登入，本機資料只會留在這台裝置。");
+    return;
+  }
+
+  els.authEmail.value = currentUser.email || "";
+  await syncCloudState();
+}
+
+async function syncCloudState() {
+  if (!cloudClient || !currentUser) return;
+
+  setAuthStatus("同步中...");
+  els.manualSyncButton.disabled = true;
+
+  try {
+    const { data, error } = await cloudClient
+      .from(cloudTableName)
+      .select("data, updated_at")
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (data?.data) {
+      const merged = mergeStates(normalizeStoredState(data.data), state);
+      isApplyingCloudState = true;
+      state = merged;
+      window.localStorage.setItem(storageKey, JSON.stringify(state));
+      isApplyingCloudState = false;
+      render();
+    }
+
+    await saveCloudState();
+    setAuthStatus(`已同步：${currentUser.email || "已登入帳號"}`);
+  } catch (error) {
+    isApplyingCloudState = false;
+    setAuthStatus(`同步失敗：${formatCloudError(error)}`);
+  } finally {
+    els.manualSyncButton.disabled = !currentUser;
+  }
+}
+
+function scheduleCloudSave() {
+  if (!cloudClient || !currentUser) return;
+  window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(() => {
+    saveCloudState();
+  }, 700);
+}
+
+async function saveCloudState() {
+  if (!cloudClient || !currentUser) return;
+
+  const { error } = await cloudClient.from(cloudTableName).upsert({
+    user_id: currentUser.id,
+    data: serializeState(state),
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    setAuthStatus(`雲端儲存失敗：${formatCloudError(error)}`);
+    return;
+  }
+
+  setAuthStatus(`已同步：${currentUser.email || "已登入帳號"}`);
+}
+
+function serializeState(source) {
+  return {
+    entries: normalizeEntries(source.entries),
+    foods: getCustomFoods(source.foods),
+    weights: normalizeWeights(source.weights),
+    lastSelectedDate: isDateInputValue(source.lastSelectedDate) ? source.lastSelectedDate : selectedDate,
+  };
+}
+
+function mergeStates(remote, local) {
+  const entries = new Map();
+  normalizeEntries(remote.entries).forEach((entry) => entries.set(entry.id, entry));
+  normalizeEntries(local.entries).forEach((entry) => entries.set(entry.id, entry));
+
+  const customFoods = new Map();
+  getCustomFoods(remote.foods).forEach((food) => customFoods.set(food.id, food));
+  getCustomFoods(local.foods).forEach((food) => customFoods.set(food.id, food));
+
+  return {
+    entries: Array.from(entries.values()),
+    foods: mergeFoods(Array.from(customFoods.values())),
+    weights: {
+      ...normalizeWeights(remote.weights),
+      ...normalizeWeights(local.weights),
+    },
+    lastSelectedDate: isDateInputValue(local.lastSelectedDate) ? local.lastSelectedDate : remote.lastSelectedDate,
+  };
+}
+
+function updateAuthUi() {
+  const isLoggedIn = Boolean(currentUser);
+  els.authForm.hidden = isLoggedIn;
+  els.signOutButton.hidden = !isLoggedIn;
+  els.manualSyncButton.disabled = !isLoggedIn;
+}
+
+function setAuthStatus(message) {
+  els.authStatus.textContent = message;
+}
+
+function getAuthRedirectUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function formatCloudError(error) {
+  if (error?.code === "42P01" || error?.code === "PGRST205") {
+    return "找不到資料表，請先在 Supabase SQL Editor 執行 supabase-schema.sql。";
+  }
+  if (error?.message) return error.message;
+  return "未知錯誤";
 }
 
 async function refreshAppVersion() {
@@ -484,6 +678,30 @@ function createDefaultState() {
   };
 }
 
+function normalizeStoredState(stored) {
+  if (!stored || typeof stored !== "object") return createDefaultState();
+  const entries = normalizeEntries(stored.entries);
+  return {
+    entries,
+    foods: mergeFoods(Array.isArray(stored.foods) ? stored.foods : []),
+    weights: normalizeWeights(stored.weights),
+    lastSelectedDate: getStoredSelectedDate({ ...stored, entries }),
+  };
+}
+
+function normalizeEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry) => ({
+      id: entry.id || createId(),
+      date: entry.date,
+      name: String(entry.name || "").trim(),
+      protein: roundOne(entry.protein),
+      calories: Math.round(toNumber(entry.calories)),
+    }))
+    .filter((entry) => isDateInputValue(entry.date) && entry.name);
+}
+
 function getStoredSelectedDate(stored) {
   if (isDateInputValue(stored.lastSelectedDate)) return stored.lastSelectedDate;
   const entryDates = stored.entries.map((entry) => entry.date).filter(isDateInputValue);
@@ -498,6 +716,11 @@ function mergeFoods(savedFoods) {
     .map(normalizeCustomFood)
     .forEach((food) => byId.set(food.id, food));
   return Array.from(byId.values());
+}
+
+function getCustomFoods(foods) {
+  if (!Array.isArray(foods)) return [];
+  return foods.filter((food) => !food.builtIn).map(normalizeCustomFood);
 }
 
 function normalizeCustomFood(food) {
