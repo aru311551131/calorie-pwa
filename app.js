@@ -61,7 +61,9 @@ const els = {
   updateButton: document.querySelector("#updateButton"),
   authForm: document.querySelector("#authForm"),
   authEmail: document.querySelector("#authEmail"),
+  authPassword: document.querySelector("#authPassword"),
   authStatus: document.querySelector("#authStatus"),
+  signUpButton: document.querySelector("#signUpButton"),
   manualSyncButton: document.querySelector("#manualSyncButton"),
   signOutButton: document.querySelector("#signOutButton"),
 };
@@ -178,7 +180,11 @@ function bindEvents() {
 
   els.authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await sendLoginEmail();
+    await signInWithPassword();
+  });
+
+  els.signUpButton.addEventListener("click", async () => {
+    await signUpWithPassword();
   });
 
   els.manualSyncButton.addEventListener("click", async () => {
@@ -446,29 +452,62 @@ async function initCloudAuth() {
   });
 }
 
-async function sendLoginEmail() {
+async function signInWithPassword() {
   if (!cloudClient) {
     setAuthStatus("雲端同步套件尚未載入，請稍後再試。");
     return;
   }
 
   const email = els.authEmail.value.trim();
-  if (!email) return;
+  const password = els.authPassword.value;
+  if (!email || !password) return;
 
-  setAuthStatus("寄送登入信中...");
-  const { error } = await cloudClient.auth.signInWithOtp({
+  setAuthStatus("登入中...");
+  const { error } = await cloudClient.auth.signInWithPassword({
     email,
-    options: {
-      emailRedirectTo: getAuthRedirectUrl(),
-    },
+    password,
   });
 
   if (error) {
-    setAuthStatus(`登入信寄送失敗：${error.message}`);
+    setAuthStatus(`登入失敗：${formatCloudError(error)}`);
     return;
   }
 
-  setAuthStatus("登入信已寄出，請到信箱點連結。");
+  setAuthStatus("登入成功，載入雲端資料中...");
+}
+
+async function signUpWithPassword() {
+  if (!cloudClient) {
+    setAuthStatus("雲端同步套件尚未載入，請稍後再試。");
+    return;
+  }
+
+  const email = els.authEmail.value.trim();
+  const password = els.authPassword.value;
+  if (!email || !password) return;
+
+  if (password.length < 6) {
+    setAuthStatus("建立帳號失敗：密碼至少需要 6 碼。");
+    return;
+  }
+
+  setAuthStatus("建立帳號中...");
+  const { data, error } = await cloudClient.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    setAuthStatus(`建立帳號失敗：${formatCloudError(error)}`);
+    return;
+  }
+
+  if (!data.session) {
+    setAuthStatus("帳號已建立，請先到信箱完成確認後再登入。");
+    return;
+  }
+
+  setAuthStatus("帳號已建立，載入雲端資料中...");
 }
 
 async function signOut() {
@@ -488,6 +527,7 @@ async function handleCloudSession(session) {
   }
 
   els.authEmail.value = currentUser.email || "";
+  els.authPassword.value = "";
   await syncCloudState();
 }
 
@@ -585,6 +625,8 @@ function formatCloudError(error) {
   if (error?.code === "42P01" || error?.code === "PGRST205") {
     return "找不到資料表，請先在 Supabase SQL Editor 執行 supabase-schema.sql。";
   }
+  if (error?.message?.includes("Email not confirmed")) return "信箱尚未確認，請先到信箱點確認信。";
+  if (error?.message?.includes("Invalid login credentials")) return "信箱或密碼錯誤。";
   if (error?.message) return error.message;
   return "未知錯誤";
 }

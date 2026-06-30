@@ -43,7 +43,12 @@
             Email
             <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
           </label>
-          <button class="primary-button" type="submit">寄送登入信</button>
+          <label>
+            密碼
+            <input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="至少 6 碼" required />
+          </label>
+          <button class="primary-button" type="submit">登入</button>
+          <button class="secondary-button" id="signUpButton" type="button">建立帳號</button>
         </form>
         <div class="auth-actions">
           <button class="secondary-button" id="manualSyncButton" type="button" disabled>立即同步</button>

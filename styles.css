@@ -379,7 +379,7 @@ button:disabled {
 }
 
 .entry-form {
-  grid-template-columns: 148px minmax(180px, 1fr) 118px 118px auto;
+  grid-template-columns: minmax(140px, 0.8fr) minmax(180px, 1.4fr) minmax(104px, 0.7fr) minmax(104px, 0.7fr) minmax(86px, auto);
   align-items: end;
   padding: 14px;
   background: var(--surface-strong);
@@ -392,6 +392,7 @@ label {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 720;
+  min-width: 0;
 }
 
 input,
@@ -403,6 +404,14 @@ select {
   padding: 0 11px;
   background: var(--surface);
   color: var(--ink);
+}
+
+.entry-form > *,
+.weight-form > *,
+.export-form > *,
+.calculator-row > *,
+.food-form > * {
+  min-width: 0;
 }
 
 input:focus,
@@ -552,6 +561,16 @@ button:focus-visible {
   .calculator-row,
   .food-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1280px) {
+  .entry-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .entry-form .primary-button {
+    grid-column: 1 / -1;
   }
 }
 
