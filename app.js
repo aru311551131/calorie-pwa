@@ -64,6 +64,9 @@ const els = {
   authPassword: document.querySelector("#authPassword"),
   authStatus: document.querySelector("#authStatus"),
   signUpButton: document.querySelector("#signUpButton"),
+  resetPasswordButton: document.querySelector("#resetPasswordButton"),
+  newPasswordForm: document.querySelector("#newPasswordForm"),
+  newPasswordInput: document.querySelector("#newPasswordInput"),
   manualSyncButton: document.querySelector("#manualSyncButton"),
   signOutButton: document.querySelector("#signOutButton"),
 };
@@ -185,6 +188,15 @@ function bindEvents() {
 
   els.signUpButton.addEventListener("click", async () => {
     await signUpWithPassword();
+  });
+
+  els.resetPasswordButton.addEventListener("click", async () => {
+    await requestPasswordReset();
+  });
+
+  els.newPasswordForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveNewPassword();
   });
 
   els.manualSyncButton.addEventListener("click", async () => {
@@ -447,7 +459,14 @@ async function initCloudAuth() {
   }
 
   await handleCloudSession(data.session);
-  cloudClient.auth.onAuthStateChange((_event, session) => {
+  cloudClient.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      showPasswordRecoveryForm();
+      currentUser = session?.user || null;
+      updateAuthUi();
+      setAuthStatus("請輸入新密碼。");
+      return;
+    }
     handleCloudSession(session);
   });
 }
@@ -510,10 +529,60 @@ async function signUpWithPassword() {
   setAuthStatus("帳號已建立，載入雲端資料中...");
 }
 
+async function requestPasswordReset() {
+  if (!cloudClient) {
+    setAuthStatus("雲端同步套件尚未載入，請稍後再試。");
+    return;
+  }
+
+  const email = els.authEmail.value.trim();
+  if (!email) {
+    setAuthStatus("請先輸入 email。");
+    return;
+  }
+
+  setAuthStatus("寄送設定密碼信中...");
+  const { error } = await cloudClient.auth.resetPasswordForEmail(email, {
+    redirectTo: getAuthRedirectUrl(),
+  });
+
+  if (error) {
+    setAuthStatus(`設定密碼信寄送失敗：${formatCloudError(error)}`);
+    return;
+  }
+
+  setAuthStatus("設定密碼信已寄出，請到信箱點連結。");
+}
+
+async function saveNewPassword() {
+  if (!cloudClient) return;
+
+  const password = els.newPasswordInput.value;
+  if (password.length < 6) {
+    setAuthStatus("新密碼至少需要 6 碼。");
+    return;
+  }
+
+  setAuthStatus("儲存新密碼中...");
+  const { error } = await cloudClient.auth.updateUser({ password });
+
+  if (error) {
+    setAuthStatus(`新密碼儲存失敗：${formatCloudError(error)}`);
+    return;
+  }
+
+  els.newPasswordInput.value = "";
+  hidePasswordRecoveryForm();
+  setAuthStatus("新密碼已設定，載入雲端資料中...");
+  const { data } = await cloudClient.auth.getSession();
+  await handleCloudSession(data.session);
+}
+
 async function signOut() {
   if (!cloudClient) return;
   await cloudClient.auth.signOut();
   currentUser = null;
+  hidePasswordRecoveryForm();
   updateAuthUi();
   setAuthStatus("已登出，本機資料仍保留在這台裝置。");
 }
@@ -608,9 +677,26 @@ function applyCloudState(cloudState) {
 
 function updateAuthUi() {
   const isLoggedIn = Boolean(currentUser);
-  els.authForm.hidden = isLoggedIn;
+  if (!isPasswordRecoveryVisible()) {
+    els.authForm.hidden = isLoggedIn;
+  }
   els.signOutButton.hidden = !isLoggedIn;
   els.manualSyncButton.disabled = !isLoggedIn;
+}
+
+function showPasswordRecoveryForm() {
+  els.authForm.hidden = true;
+  els.newPasswordForm.hidden = false;
+  els.newPasswordInput.focus();
+}
+
+function hidePasswordRecoveryForm() {
+  els.newPasswordForm.hidden = true;
+  els.authForm.hidden = Boolean(currentUser);
+}
+
+function isPasswordRecoveryVisible() {
+  return !els.newPasswordForm.hidden;
 }
 
 function setAuthStatus(message) {
