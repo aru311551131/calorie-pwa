@@ -507,16 +507,13 @@ async function syncCloudState() {
     if (error) throw error;
 
     if (data?.data) {
-      const merged = mergeStates(normalizeStoredState(data.data), state);
-      isApplyingCloudState = true;
-      state = merged;
-      window.localStorage.setItem(storageKey, JSON.stringify(state));
-      isApplyingCloudState = false;
-      render();
+      applyCloudState(normalizeStoredState(data.data));
+      await saveCloudState();
+      setAuthStatus(`已載入雲端資料：${currentUser.email || "已登入帳號"}`);
+    } else {
+      await saveCloudState();
+      setAuthStatus(`已建立雲端資料：${currentUser.email || "已登入帳號"}`);
     }
-
-    await saveCloudState();
-    setAuthStatus(`已同步：${currentUser.email || "已登入帳號"}`);
   } catch (error) {
     isApplyingCloudState = false;
     setAuthStatus(`同步失敗：${formatCloudError(error)}`);
@@ -559,24 +556,14 @@ function serializeState(source) {
   };
 }
 
-function mergeStates(remote, local) {
-  const entries = new Map();
-  normalizeEntries(remote.entries).forEach((entry) => entries.set(entry.id, entry));
-  normalizeEntries(local.entries).forEach((entry) => entries.set(entry.id, entry));
-
-  const customFoods = new Map();
-  getCustomFoods(remote.foods).forEach((food) => customFoods.set(food.id, food));
-  getCustomFoods(local.foods).forEach((food) => customFoods.set(food.id, food));
-
-  return {
-    entries: Array.from(entries.values()),
-    foods: mergeFoods(Array.from(customFoods.values())),
-    weights: {
-      ...normalizeWeights(remote.weights),
-      ...normalizeWeights(local.weights),
-    },
-    lastSelectedDate: isDateInputValue(local.lastSelectedDate) ? local.lastSelectedDate : remote.lastSelectedDate,
-  };
+function applyCloudState(cloudState) {
+  isApplyingCloudState = true;
+  state = cloudState;
+  selectedDate = cloudState.lastSelectedDate;
+  visibleMonth = startOfMonth(parseDateInput(selectedDate));
+  window.localStorage.setItem(storageKey, JSON.stringify(state));
+  isApplyingCloudState = false;
+  render();
 }
 
 function updateAuthUi() {

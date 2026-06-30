@@ -1,4 +1,4 @@
-const cacheName = "daily-nutrition-pwa-v9";
+const cacheName = "daily-nutrition-pwa-v10";
 const assets = [
   "./",
   "./index.html",

@@ -24,7 +24,7 @@
 4. `Site URL` 設成 `https://aru311551131.github.io/calorie-pwa/`。
 5. 如果有 `Redirect URLs`，加入 `https://aru311551131.github.io/calorie-pwa/`。
 
-登入後，app 會把目前本機資料和雲端資料合併，再同步到 Supabase。未登入時仍可用本機模式。
+登入後，如果帳號已有雲端資料，app 會載入雲端資料並覆蓋目前裝置的 localStorage。若帳號還沒有雲端資料，第一次登入會用目前本機資料建立雲端資料。未登入時仍可用本機模式。
 
 ## GitHub Pages 部署
 
