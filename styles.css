@@ -192,6 +192,11 @@ button:disabled {
   align-items: start;
 }
 
+.workspace[data-view="calendar"],
+.workspace[data-view="day"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .auth-pane {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(280px, 0.9fr) auto;
@@ -203,6 +208,17 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+}
+
+body[data-view="home"] .topbar,
+body[data-view="home"] .auth-pane {
+  max-width: 860px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+body[data-view="home"] .auth-pane {
+  margin-top: 10px;
 }
 
 .auth-pane h2 {
@@ -257,6 +273,17 @@ button:disabled {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.day-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.back-button {
+  flex: 0 0 auto;
 }
 
 .month-label {
@@ -598,6 +625,14 @@ button:focus-visible {
   .auth-actions,
   .month-controls {
     width: 100%;
+  }
+
+  .day-heading {
+    width: 100%;
+  }
+
+  .back-button {
+    flex: 0 0 auto;
   }
 
   .icon-button,

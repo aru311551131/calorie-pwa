@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <div class="app-shell" id="appShell">
       <header class="topbar">
         <div>
           <p class="eyebrow">PWA Nutrition Tracker</p>
@@ -32,7 +32,7 @@
         </div>
       </header>
 
-      <section class="auth-pane" aria-labelledby="authTitle">
+      <section class="auth-pane" id="authPane" aria-labelledby="authTitle">
         <div>
           <p class="eyebrow">Cloud Sync</p>
           <h2 id="authTitle">信箱登入同步</h2>
@@ -64,8 +64,8 @@
         </div>
       </section>
 
-      <main class="workspace">
-        <section class="calendar-pane" aria-labelledby="calendarTitle">
+      <main class="workspace" id="workspace" hidden>
+        <section class="calendar-pane" id="calendarPane" aria-labelledby="calendarTitle">
           <div class="section-head">
             <div>
               <p class="eyebrow">Calendar</p>
@@ -90,11 +90,14 @@
           <div class="calendar-grid" id="calendarGrid"></div>
         </section>
 
-        <section class="day-pane" aria-labelledby="dayTitle">
-          <div class="section-head">
-            <div>
+        <section class="day-pane" id="dayPane" aria-labelledby="dayTitle">
+          <div class="section-head day-head">
+            <div class="day-heading">
+              <button class="secondary-button back-button" id="backToCalendarButton" type="button">上一頁</button>
+              <div>
               <p class="eyebrow">Daily Log</p>
               <h2 id="dayTitle">選取日期</h2>
+              </div>
             </div>
             <div class="summary-strip" aria-label="當日加總">
               <div>
@@ -144,7 +147,7 @@
           <div class="entry-list" id="entryList" aria-live="polite"></div>
         </section>
 
-        <section class="export-pane" aria-labelledby="exportTitle">
+        <section class="export-pane" id="exportPane" aria-labelledby="exportTitle">
           <div class="section-head">
             <div>
               <p class="eyebrow">Export</p>
@@ -164,7 +167,7 @@
           </form>
         </section>
 
-        <section class="food-pane" aria-labelledby="foodTitle">
+        <section class="food-pane" id="foodPane" aria-labelledby="foodTitle">
           <div class="section-head">
             <div>
               <p class="eyebrow">Food Table</p>

@@ -21,13 +21,21 @@ let storageWarningShown = false;
 let currentUser = null;
 let syncTimer = null;
 let isApplyingCloudState = false;
+let currentView = "home";
 
 const els = {
+  appShell: document.querySelector("#appShell"),
+  workspace: document.querySelector("#workspace"),
+  calendarPane: document.querySelector("#calendarPane"),
+  dayPane: document.querySelector("#dayPane"),
+  exportPane: document.querySelector("#exportPane"),
+  foodPane: document.querySelector("#foodPane"),
   monthLabel: document.querySelector("#monthLabel"),
   calendarGrid: document.querySelector("#calendarGrid"),
   prevMonth: document.querySelector("#prevMonth"),
   nextMonth: document.querySelector("#nextMonth"),
   todayButton: document.querySelector("#todayButton"),
+  backToCalendarButton: document.querySelector("#backToCalendarButton"),
   dayTitle: document.querySelector("#dayTitle"),
   dailyWeight: document.querySelector("#dailyWeight"),
   dailyCalories: document.querySelector("#dailyCalories"),
@@ -97,6 +105,10 @@ function bindEvents() {
   els.todayButton.addEventListener("click", () => {
     setSelectedDate(toDateInputValue(new Date()));
     render();
+  });
+
+  els.backToCalendarButton.addEventListener("click", () => {
+    showCalendarView();
   });
 
   els.entryDate.addEventListener("change", (event) => {
@@ -212,6 +224,42 @@ function render() {
   renderCalendar();
   renderDay();
   renderFoodTools();
+  updateAppView();
+}
+
+function showCalendarView() {
+  currentView = "calendar";
+  render();
+}
+
+function showDayView(dateValue = selectedDate) {
+  setSelectedDate(dateValue);
+  currentView = "day";
+  render();
+}
+
+function updateAppView() {
+  const isLoggedIn = Boolean(currentUser);
+  const isRecovery = isPasswordRecoveryVisible();
+
+  if (!isLoggedIn || isRecovery) {
+    currentView = "home";
+  } else if (currentView === "home") {
+    currentView = "calendar";
+  }
+
+  const activeView = isLoggedIn && !isRecovery ? currentView : "home";
+  const isCalendarView = activeView === "calendar";
+  const isDayView = activeView === "day";
+
+  document.body.dataset.view = activeView;
+  els.appShell.dataset.view = activeView;
+  els.workspace.dataset.view = activeView;
+  els.workspace.hidden = !isLoggedIn || isRecovery;
+  els.calendarPane.hidden = !isCalendarView;
+  els.exportPane.hidden = !isCalendarView;
+  els.dayPane.hidden = !isDayView;
+  els.foodPane.hidden = !isDayView;
 }
 
 function renderCalendar() {
@@ -251,9 +299,7 @@ function renderCalendar() {
     `;
 
     button.addEventListener("click", () => {
-      setSelectedDate(value);
-      renderCalendar();
-      renderDay();
+      showDayView(value);
     });
 
     els.calendarGrid.append(button);
@@ -677,22 +723,32 @@ function applyCloudState(cloudState) {
 
 function updateAuthUi() {
   const isLoggedIn = Boolean(currentUser);
+  if (!isLoggedIn) {
+    currentView = "home";
+  } else if (currentView === "home" && !isPasswordRecoveryVisible()) {
+    currentView = "calendar";
+  }
+
   if (!isPasswordRecoveryVisible()) {
     els.authForm.hidden = isLoggedIn;
   }
   els.signOutButton.hidden = !isLoggedIn;
   els.manualSyncButton.disabled = !isLoggedIn;
+  updateAppView();
 }
 
 function showPasswordRecoveryForm() {
+  currentView = "home";
   els.authForm.hidden = true;
   els.newPasswordForm.hidden = false;
   els.newPasswordInput.focus();
+  updateAppView();
 }
 
 function hidePasswordRecoveryForm() {
   els.newPasswordForm.hidden = true;
   els.authForm.hidden = Boolean(currentUser);
+  updateAppView();
 }
 
 function isPasswordRecoveryVisible() {
