@@ -350,7 +350,16 @@ body[data-view="home"] .auth-pane {
   gap: 2px;
   color: var(--muted);
   font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
   line-height: 1.22;
+}
+
+.day-totals span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .day-dot {
@@ -651,11 +660,13 @@ button:focus-visible {
 
   .day-button {
     min-height: 70px;
-    padding: 7px;
+    padding: 6px 4px;
   }
 
   .day-totals {
-    font-size: 0.66rem;
+    font-size: 0.58rem;
+    gap: 1px;
+    line-height: 1.18;
   }
 
   .summary-strip,
@@ -684,5 +695,6 @@ button:focus-visible {
 
   .day-button {
     min-height: 74px;
+    padding: 6px 3px;
   }
 }

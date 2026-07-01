@@ -280,6 +280,7 @@ function renderCalendar() {
     const totals = getTotalsForDate(value);
     const weight = getWeightForDate(value);
     const calendarTotals = getCalendarTotalsDisplay(totals, weight);
+    const compactTotals = getCompactCalendarTotalsDisplay(totals, weight);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "day-button";
@@ -291,9 +292,9 @@ function renderCalendar() {
     button.innerHTML = `
       <span class="day-number">${date.getDate()}</span>
       <span class="day-totals">
-        <span>${formatWeight(weight)} kg</span>
-        <span>${calendarTotals.calories}</span>
-        <span>${calendarTotals.protein}</span>
+        <span>${formatCalendarWeight(weight)}</span>
+        <span>${compactTotals.calories}</span>
+        <span>${compactTotals.protein}</span>
       </span>
       ${totals.count || weight ? '<span class="day-dot" aria-hidden="true"></span>' : ""}
     `;
@@ -454,6 +455,31 @@ function getCalendarTotalsDisplay(totals, weight) {
     calories: `${totals.calories} kcal`,
     protein: `${formatAmount(totals.protein)} g P`,
   };
+}
+
+function getCompactCalendarTotalsDisplay(totals, weight) {
+  if (weight && totals.count === 0) {
+    return {
+      calories: "XXXX",
+      protein: "XXXP",
+    };
+  }
+  return {
+    calories: `${totals.calories}k`,
+    protein: `${formatCompactProtein(totals.protein)}P`,
+  };
+}
+
+function formatCalendarWeight(value) {
+  return `${formatWeight(value)}kg`;
+}
+
+function formatCompactProtein(value) {
+  const protein = roundOne(value);
+  if (Number.isInteger(protein)) return String(protein);
+  return protein.toLocaleString("zh-Hant-TW", {
+    maximumFractionDigits: 1,
+  });
 }
 
 function getWeightForDate(dateValue) {
